@@ -65,6 +65,18 @@ void Game::init()
 	m_scoreText.setString("Score: 0");
 	m_scoreText.setPosition(400.0f, 0.0f);
 	m_scoreText.setOrigin(m_scoreText.getGlobalBounds().width / 2.0f, 0.0f);
+
+	m_windText.setFont(m_font);
+	m_windText.setString("Wind acceleration: { " + std::to_string(m_windAcceleration.x) + ", " + std::to_string(m_windAcceleration.y) + " }");
+	m_windText.setCharacterSize(20u);
+	m_windText.setPosition(0.0f, 40.0f);
+
+	for (unsigned int i = 0; i < m_WIND_LINES_NUMBER; i++)
+	{
+		sf::Vector2f position{ static_cast<float>(rand() % 800), static_cast<float>(rand() % 600) };
+		m_windIndicatorLines.append({ position, sf::Color{ 255, 255, 255, 100 } });
+		m_windIndicatorLines.append({ position + (m_windAcceleration * m_VISUAL_WIND_MULTIPLIER), sf::Color{ 255, 255, 255, 100 } });
+	}
 }
 
 void Game::run()
@@ -89,6 +101,14 @@ void Game::run()
 				if (sf::Keyboard::D == event.key.code)
 				{
 					m_debugging = !m_debugging;
+				}
+				if (sf::Keyboard::W == event.key.code)
+				{
+					m_windOn = !m_windOn;
+				}
+				if (sf::Keyboard::R == event.key.code)
+				{
+					restart();
 				}
 			}
 		}
@@ -155,6 +175,7 @@ void Game::run()
 					m_currentViewport.setCenter({ m_birdSprite.getPosition().x, 300.0f });
 					window.setView(m_currentViewport);
 					m_scoreText.setPosition(m_birdSprite.getPosition().x, 0.0f);
+					m_windText.setPosition(m_birdSprite.getPosition().x - 400.0f, 40.0f);
 				}
 
 				for (int i = 0; i < NUM_OBSTACLES; i++)
@@ -185,24 +206,38 @@ void Game::run()
 
 					if (velocity.x < 1.0f)
 					{
-						gravity.y = 0;
-						velocity = { 0.0f, 0.0f };
-						m_rotationForce = 0.0f;
-						playerState = ready;
-						m_birdSprite.setPosition(LAUNCH_POSITION);
-						m_birdSprite.setRotation(0.0f);
-						window.setView(window.getDefaultView());
-						m_birdSprite.setTextureRect({ 62, 0, 62, 61 });
-
-						m_scoreText.setString("Previous Score: " + std::to_string(m_score));
-						m_scoreText.setPosition(400.0f, 0.0f);
-						m_scoreText.setOrigin(m_scoreText.getGlobalBounds().width / 2.0f, 0.0f);
 						restart();
 					}
 				}
 			}
 
+			if (m_windOn)
+			{
+
+				for (unsigned int i = 0; i < m_WIND_LINES_NUMBER * 2; i += 2)
+				{
+					m_windIndicatorLines[i].position += ((m_windAcceleration * m_VISUAL_WIND_MULTIPLIER) * timeSinceLastUpdate.asSeconds());
+					m_windIndicatorLines[i + 1].position += ((m_windAcceleration * m_VISUAL_WIND_MULTIPLIER) * timeSinceLastUpdate.asSeconds());
+
+					if (m_windIndicatorLines[i].position.x < window.getView().getCenter().x - window.getView().getSize().x / 2.0f
+						|| m_windIndicatorLines[i + 1].position.x > window.getView().getCenter().x + window.getView().getSize().x / 2.0f)
+					{
+						sf::Vector2f position{ window.getView().getCenter().x + window.getView().getSize().x / 2.0f, static_cast<float>(rand() % 600) };
+						m_windIndicatorLines[i].position = position - m_windAcceleration * m_VISUAL_WIND_MULTIPLIER;
+						m_windIndicatorLines[i + 1].position = position;
+					}
+				}
+			}
+
 			velocity = velocity + (gravity * timeSinceLastUpdate.asSeconds());
+
+			if (playerState == Jump)
+			{
+				if (m_windOn)
+				{
+					velocity = velocity + (m_windAcceleration * timeSinceLastUpdate.asSeconds());
+				}
+			}
 
 			m_birdSprite.move(velocity.x * timeSinceLastUpdate.asSeconds(), velocity.y * timeSinceLastUpdate.asSeconds());
 			m_birdSprite.rotate(m_rotationForce * timeSinceLastUpdate.asSeconds());
@@ -243,6 +278,12 @@ void Game::run()
 
 			window.draw(m_scoreText);
 
+			if (m_windOn)
+			{
+				window.draw(m_windText);
+				window.draw(m_windIndicatorLines);
+			}
+
 			window.display();
 
 
@@ -253,8 +294,30 @@ void Game::run()
 
 void Game::restart()
 {
+	gravity.y = 0;
+	velocity = { 0.0f, 0.0f };
+	m_rotationForce = 0.0f;
+	playerState = ready;
+	m_birdSprite.setPosition(LAUNCH_POSITION);
+	m_birdSprite.setRotation(0.0f);
+	window.setView(window.getDefaultView());
+	m_birdSprite.setTextureRect({ 62, 0, 62, 61 });
+
+	m_scoreText.setString("Previous Score: " + std::to_string(m_score));
+	m_scoreText.setPosition(400.0f, 0.0f);
+	m_windText.setPosition(0.0f, 40.0f);
+	m_scoreText.setOrigin(m_scoreText.getGlobalBounds().width / 2.0f, 0.0f);
+
 	for (int i = 0; i < NUM_OBSTACLES; i++)
 	{
 		m_obstaclePositions[i] = rand() % (200 * NUM_OBSTACLES) + static_cast<int>(LAUNCH_POSITION.x);
+	}
+
+	m_windIndicatorLines.clear();
+	for (unsigned int i = 0; i < m_WIND_LINES_NUMBER; i++)
+	{
+		sf::Vector2f position{ static_cast<float>(rand() % 800), static_cast<float>(rand() % 600) };
+		m_windIndicatorLines.append({ position, sf::Color{ 255, 255, 255, 100 } });
+		m_windIndicatorLines.append({ position + (m_windAcceleration * m_VISUAL_WIND_MULTIPLIER), sf::Color{ 255, 255, 255, 100 } });
 	}
 }

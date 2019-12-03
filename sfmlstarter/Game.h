@@ -61,8 +61,10 @@ private:
 
 	sf::Vector2f velocity = { 0,0 };
 	sf::Vector2f gravity{ 0.0f, 0.0f };
+	sf::Vector2f m_windAcceleration{ -50.0f, 5.0f };
 
 	bool m_debugging{ false };
+	bool m_windOn{ false }; 
 
 	sf::Vector2f normalised;
 
@@ -70,4 +72,9 @@ private:
 
 	sf::Font m_font;
 	sf::Text m_scoreText;
+	sf::Text m_windText;
+
+	static const unsigned int m_WIND_LINES_NUMBER{ 10 };
+	static float constexpr m_VISUAL_WIND_MULTIPLIER{ 8.0f };
+	sf::VertexArray m_windIndicatorLines{ sf::Lines };
 };
